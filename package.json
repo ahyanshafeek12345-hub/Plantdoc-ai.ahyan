@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/generative-ai": "^0.24.0",
     "@types/react": "18.0.8",
     "@types/react-dom": "18.0.2",
     "lucide-react": "^0.383.0",
