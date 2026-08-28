@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Search, Bug, Pill, Leaf, History, X } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface HistoryItem {
   id: number;
@@ -63,25 +63,21 @@ export default function App() {
     setResult(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.REACT_APP_GEMINI_API_KEY || '' });
+      const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY || '');
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: mimeType,
-            },
+      const response = await model.generateContent([
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType,
           },
-          {
-            text: 'Analyze this plant image. Identify the plant species, detect any diseases, pests, or nutrient deficiencies, and provide short, actionable treatment steps.',
-          },
-        ],
-      });
+        },
+        'Analyze this plant image. Identify the plant species, detect any diseases, pests, or nutrient deficiencies, and provide short, actionable treatment steps.',
+      ]);
 
-      const diagnosisText = response.text || 'Could not analyze the plant image. Please try another photo.';
-
+      const diagnosisText = response.response.text() || 'Could not analyze the plant image. Please try another photo.';
+      
       setIsIdentifying(false);
       setResult(diagnosisText);
       setHistory((prev) => [
