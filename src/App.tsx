@@ -1,22 +1,71 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, Search, Bug, Pill, Leaf, History } from 'lucide-react';
+import { Camera, Upload, Search, Bug, Pill, Leaf, History, X } from 'lucide-react';
+
+interface HistoryItem {
+  id: number;
+  image: string;
+  result: string;
+  date: string;
+}
 
 export default function App() {
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState<string | null>(null);
   const [isIdentifying, setIsIdentifying] = useState(false);
-  const fileInputRef = useRef(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(URL.createObjectURL(file));
+  const processFile = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setImage(url);
+      setResult(null);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
   };
 
   const handleIdentify = () => {
     if (!image) return;
     setIsIdentifying(true);
-    setTimeout(() => setIsIdentifying(false), 1500);
+    setResult(null);
+
+    // Placeholder result — replace with a real plant-ID API call later
+    setTimeout(() => {
+      const mockResult = 'Early signs of leaf spot detected. Likely fungal — improve air circulation and avoid overhead watering.';
+      setIsIdentifying(false);
+      setResult(mockResult);
+      setHistory((prev) => [
+        {
+          id: Date.now(),
+          image: image,
+          result: mockResult,
+          date: new Date().toLocaleString(),
+        },
+        ...prev,
+      ]);
+    }, 1500);
   };
 
   return (
@@ -27,7 +76,7 @@ export default function App() {
           <h1 className="text-xl font-bold">AH plantdocAI</h1>
         </div>
         <button
-          onClick={() => alert('Show diagnose history')}
+          onClick={() => setShowHistory(true)}
           className="flex items-center gap-2 text-gray-600 hover:text-green-600"
         >
           <History size={20} />
@@ -52,17 +101,28 @@ export default function App() {
 
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center transition-colors hover:border-green-500 mb-6 cursor-pointer"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors mb-6 cursor-pointer overflow-hidden ${
+              isDragging ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-green-500'
+            }`}
           >
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
-                <Upload className="text-green-600" />
+            {image ? (
+              <img
+                src={image}
+                alt="Uploaded plant"
+                className="max-h-64 mx-auto rounded-lg object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center py-6">
+                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
+                  <Upload className="text-green-600" />
+                </div>
+                <p className="text-lg font-medium">Drop your plant photo here</p>
+                <p className="text-sm text-gray-500">or use one of the options below</p>
               </div>
-              <p className="text-lg font-medium">
-                {image ? 'Photo selected' : 'Drop your plant photo here'}
-              </p>
-              <p className="text-sm text-gray-500">or use one of the options below</p>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-4">
@@ -87,6 +147,13 @@ export default function App() {
           >
             <Search size={22} /> {isIdentifying ? 'Identifying...' : 'Identify'}
           </button>
+
+          {result && (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-left">
+              <h3 className="font-bold text-green-800 mb-1">Diagnosis</h3>
+              <p className="text-gray-700">{result}</p>
+            </div>
+          )}
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -95,11 +162,40 @@ export default function App() {
           <FeatureCard icon={<Pill className="text-blue-500" />} title="Treat" desc="Get tailored solutions" />
         </div>
       </main>
+
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6 relative">
+            <button
+              onClick={() => setShowHistory(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Diagnose History</h2>
+            {history.length === 0 ? (
+              <p className="text-gray-500">No diagnoses yet. Identify a plant to see it here.</p>
+            ) : (
+              <div className="space-y-4">
+                {history.map((item) => (
+                  <div key={item.id} className="flex gap-3 border-b pb-4">
+                    <img src={item.image} alt="History" className="w-16 h-16 object-cover rounded-lg" />
+                    <div>
+                      <p className="text-sm text-gray-400">{item.date}</p>
+                      <p className="text-gray-700">{item.result}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function FeatureCard({ icon, title, desc }) {
+function FeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex flex-col items-center text-center p-6 bg-white rounded-xl border">
       <div className="mb-4">{icon}</div>
