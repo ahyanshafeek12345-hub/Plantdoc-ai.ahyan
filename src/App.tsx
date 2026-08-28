@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Search, Bug, Pill, Leaf, History, X } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 
 interface HistoryItem {
   id: number;
@@ -10,6 +11,8 @@ interface HistoryItem {
 
 export default function App() {
   const [image, setImage] = useState<string | null>(null);
+  const [base64Image, setBase64Image] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState<string>('image/jpeg');
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -21,7 +24,15 @@ export default function App() {
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
       setImage(url);
+      setMimeType(file.type);
       setResult(null);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        setBase64Image(base64String);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -46,32 +57,54 @@ export default function App() {
     setIsDragging(false);
   };
 
-  const handleIdentify = () => {
-    if (!image) return;
+  const handleIdentify = async () => {
+    if (!base64Image || !image) return;
     setIsIdentifying(true);
     setResult(null);
 
-    // Placeholder result — replace with a real plant-ID API call later
-    setTimeout(() => {
-      const mockResult = 'Early signs of leaf spot detected. Likely fungal — improve air circulation and avoid overhead watering.';
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.REACT_APP_GEMINI_API_KEY || '' });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType,
+            },
+          },
+          {
+            text: 'Analyze this plant image. Identify the plant species, detect any diseases, pests, or nutrient deficiencies, and provide short, actionable treatment steps.',
+          },
+        ],
+      });
+
+      const diagnosisText = response.text || 'Could not analyze the plant image. Please try another photo.';
+
       setIsIdentifying(false);
-      setResult(mockResult);
+      setResult(diagnosisText);
       setHistory((prev) => [
         {
           id: Date.now(),
           image: image,
-          result: mockResult,
+          result: diagnosisText,
           date: new Date().toLocaleString(),
         },
         ...prev,
       ]);
-    }, 1500);
+    } catch (error) {
+      console.error(error);
+      setIsIdentifying(false);
+      setResult('Error connecting to the plant doctor AI. Please check your API key.');
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 antialiased font-sans">
       <header className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <Leaf className="text-green-600 w-6 h-6" />
           <h1 className="text-xl font-bold">AH plantdocAI</h1>
         </div>
@@ -145,13 +178,13 @@ export default function App() {
             disabled={!image || isIdentifying}
             className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2"
           >
-            <Search size={22} /> {isIdentifying ? 'Identifying...' : 'Identify'}
+            <Search size={22} /> {isIdentifying ? 'Analyzing Plant...' : 'Identify'}
           </button>
 
           {result && (
             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-left">
               <h3 className="font-bold text-green-800 mb-1">Diagnosis</h3>
-              <p className="text-gray-700">{result}</p>
+              <p className="text-gray-700 whitespace-pre-line">{result}</p>
             </div>
           )}
         </div>
@@ -182,7 +215,7 @@ export default function App() {
                     <img src={item.image} alt="History" className="w-16 h-16 object-cover rounded-lg" />
                     <div>
                       <p className="text-sm text-gray-400">{item.date}</p>
-                      <p className="text-gray-700">{item.result}</p>
+                      <p className="text-gray-700 text-sm whitespace-pre-line">{item.result}</p>
                     </div>
                   </div>
                 ))}
