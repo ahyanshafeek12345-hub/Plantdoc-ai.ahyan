@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Search, Bug, Pill, Leaf, History, X, AlertTriangle, CheckCircle } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface AnalysisResult {
   plantName: string;
@@ -70,38 +69,16 @@ export default function App() {
     setResult(null);
 
     try {
-      const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Gemini API key is missing. Check your environment variables.');
-      }
+      const res = await fetch('/.netlify/functions/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Image, mimeType }),
+      });
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      if (!res.ok) throw new Error('Failed to connect to plant doctor server.');
 
-      const prompt = `
-        Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it (do not use \`\`\`json ... \`\`\`), matching this structure:
-        {
-          "plantName": "Name of the plant species",
-          "severity": "healthy" | "low" | "medium" | "high",
-          "diagnosis": "Detailed explanation of diseases, pests, or deficiencies found.",
-          "treatment": ["Step 1 treatment action", "Step 2 treatment action", "Step 3 treatment action"]
-        }
-      `;
-
-      const response = await model.generateContent([
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
-          },
-        },
-        prompt,
-      ]);
-
-      const responseText = response.response.text().trim();
-      // Clean up markdown block tags if the model adds them anyway
+      const responseText = await res.text();
       const cleanedJSON = responseText.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
-      
       const parsedResult: AnalysisResult = JSON.parse(cleanedJSON);
       
       setIsIdentifying(false);
@@ -121,8 +98,8 @@ export default function App() {
       setResult({
         plantName: 'Unknown Plant',
         severity: 'high',
-        diagnosis: 'Error connecting to the plant doctor AI or parsing response. Please verify your API key in Netlify/local .env file.',
-        treatment: ['Check your API key configuration', 'Ensure the uploaded file is a clear plant image', 'Try again']
+        diagnosis: 'Error connecting to the plant doctor server function or parsing response.',
+        treatment: ['Check server configuration', 'Ensure valid image upload', 'Try again']
       });
     }
   };
