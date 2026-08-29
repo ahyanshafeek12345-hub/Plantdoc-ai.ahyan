@@ -8,11 +8,16 @@ export default async (req) => {
   try {
     const { base64Image, mimeType } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY || '';
+    
+    if (!apiKey) {
+      console.error("CRITICAL: GEMINI_API_KEY is missing from environment variables.");
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
-      Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it (do not use \`\`\`json ... \`\`\`), matching this structure:
+      Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it, matching this structure:
       {
         "plantName": "Name of the plant species",
         "severity": "healthy" | "low" | "medium" | "high",
@@ -36,6 +41,7 @@ export default async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    console.error("GEMINI FUNCTION ERROR:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
