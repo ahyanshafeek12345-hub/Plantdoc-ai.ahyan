@@ -1,16 +1,18 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-export default async function handler(req) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { base64Image, mimeType } = await req.json();
+    // Vercel automatically parses JSON bodies into req.body for standard Node.js functions
+    const { base64Image, mimeType } = req.body;
     const apiKey = process.env.GEMINI_API_KEY || '';
     
     if (!apiKey) {
       console.error("CRITICAL: GEMINI_API_KEY is missing from environment variables.");
+      return res.status(500).json({ error: "Missing API Key" });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -36,15 +38,10 @@ export default async function handler(req) {
       prompt,
     ]);
 
-    return new Response(response.response.text(), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Send the response text back to the frontend
+    return res.status(200).send(response.response.text());
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: error.message });
   }
-}
+};
