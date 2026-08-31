@@ -6,7 +6,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Vercel automatically parses JSON bodies into req.body for standard Node.js functions
     const { base64Image, mimeType } = req.body;
     const apiKey = process.env.GEMINI_API_KEY || '';
     
@@ -16,7 +15,8 @@ module.exports = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    // Fixed: Use valid production model name
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
       Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it, matching this structure:
@@ -38,7 +38,6 @@ module.exports = async (req, res) => {
       prompt,
     ]);
 
-    // Send the response text back to the frontend
     return res.status(200).send(response.response.text());
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
