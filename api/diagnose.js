@@ -15,8 +15,8 @@ module.exports = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Fixed: Use valid production model name
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Updated to use the active gemini-3.7-flash model
+    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
 
     const prompt = `
       Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it, matching this structure:
@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
       {
         inlineData: {
           data: base64Image,
-          mimeType: mimeType,
+          mimeType: mimeType || 'image/jpeg',
         },
       },
       prompt,
