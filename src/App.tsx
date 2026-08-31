@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Upload, Search, Bug, Pill, Leaf, History, X, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, Upload, Search, Bug, Pill, Leaf, History, X, AlertTriangle, CheckCircle, Download } from 'lucide-react';
 
 interface AnalysisResult {
   plantName: string;
@@ -24,7 +24,36 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+    setShowInstallBanner(false);
+  };
 
   const processFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
@@ -139,7 +168,34 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 antialiased font-sans">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 antialiased font-sans relative">
+      {/* Install App Notification Banner */}
+      {showInstallBanner && (
+        <div className="bg-green-600 text-white px-4 py-3 shadow-md flex justify-between items-center sticky top-0 z-50">
+          <div className="flex items-center gap-3">
+            <Leaf className="w-6 h-6 animate-bounce" />
+            <div>
+              <p className="font-bold text-sm">Install AH plantdocAI</p>
+              <p className="text-xs text-green-100">Add to your home screen for quick diagnosis!</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleInstallClick}
+              className="bg-white text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-green-50 transition-colors flex items-center gap-1"
+            >
+              <Download size={14} /> Install
+            </button>
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="text-green-200 hover:text-white p-1"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Leaf className="text-green-600 w-6 h-6" />

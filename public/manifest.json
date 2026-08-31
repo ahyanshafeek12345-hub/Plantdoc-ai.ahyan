@@ -1,0 +1,16 @@
+{
+  "short_name": "PlantDoc AI",
+  "name": "AH PlantDoc AI - Plant Disease Detector",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f9fafb",
+  "theme_color": "#16a34a",
+  "display": "standalone",
+  "orientation": "portrait"
+}

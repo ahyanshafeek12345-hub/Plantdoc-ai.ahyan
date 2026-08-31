@@ -1,0 +1,12 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  return self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  // Simple fetch passthrough strategy
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+});
