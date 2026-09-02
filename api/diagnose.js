@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     // Updated to use the active gemini-3.7-flash model
-    const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     const prompt = `
       Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it, matching this structure:
