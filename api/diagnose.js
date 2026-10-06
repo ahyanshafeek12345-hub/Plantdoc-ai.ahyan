@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
 
     const prompt = `Analyze this plant image and provide the diagnosis data matching the required schema structure.`;
 
-    // FIXED: Use ai.models.generateContent with 'contents' parameter
+    // Using the correct modern SDK method: ai.models.generateContent
     const response = await ai.models.generateContent({
       model: "gemini-3.8-flash",
       contents: [
@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
       }
     });
 
-    // response.text provides the generated text output safely
+    // response.text provides the generated JSON string output safely
     return res.status(200).send(response.text);
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
