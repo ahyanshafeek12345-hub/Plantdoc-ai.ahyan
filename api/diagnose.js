@@ -43,6 +43,7 @@ module.exports = async (req, res) => {
     // Using the interactions endpoint on the stable gemini-3.8-flash model
     const interaction = await ai.interactions.create({
       model: "gemini-3.8-flash",
+      // FIX: Structuring the parts array properly
       input: [
         {
           inlineData: {
@@ -50,16 +51,17 @@ module.exports = async (req, res) => {
             mimeType: mimeType || 'image/jpeg',
           },
         },
-        prompt,
+        {
+          text: prompt
+        }
       ],
-      // Enforce zero markdown wrapper clutter via strict API configuration
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: plantDiagnosisSchema
       }
     });
 
-    // interaction.output_text is now guaranteed to be pure, valid JSON string
+    // interaction.output_text is guaranteed to be pure, valid JSON string
     return res.status(200).send(interaction.output_text);
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
