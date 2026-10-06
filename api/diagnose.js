@@ -1,4 +1,3 @@
-// Upgraded to the correct modern Google Gen AI SDK
 const { GoogleGenAI, Type } = require('@google/genai');
 
 module.exports = async (req, res) => {
@@ -40,11 +39,10 @@ module.exports = async (req, res) => {
 
     const prompt = `Analyze this plant image and provide the diagnosis data matching the required schema structure.`;
 
-    // Using the interactions endpoint on the stable gemini-3.8-flash model
-    const interaction = await ai.interactions.create({
+    // FIXED: Use ai.models.generateContent with 'contents' parameter
+    const response = await ai.models.generateContent({
       model: "gemini-3.8-flash",
-      // FIX: Structuring the parts array properly
-      input: [
+      contents: [
         {
           inlineData: {
             data: base64Image,
@@ -55,14 +53,14 @@ module.exports = async (req, res) => {
           text: prompt
         }
       ],
-      generationConfig: {
+      config: {
         responseMimeType: "application/json",
         responseSchema: plantDiagnosisSchema
       }
     });
 
-    // interaction.output_text is guaranteed to be pure, valid JSON string
-    return res.status(200).send(interaction.output_text);
+    // response.text provides the generated text output safely
+    return res.status(200).send(response.text);
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
     return res.status(500).json({ error: error.message });
