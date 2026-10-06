@@ -1,4 +1,5 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// Upgraded to the correct modern Google Gen AI SDK
+const { GoogleGenAI, Type } = require('@google/genai');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -14,31 +15,52 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: "Missing API Key" });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Updated to use the active gemini-3.7-flash model
-    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
+    // Initialize using the modern GoogleGenAI constructor
+    const ai = new GoogleGenAI({ apiKey });
 
-    const prompt = `
-      Analyze this plant image. Return your answer strictly in valid JSON format with no markdown formatting around it, matching this structure:
-      {
-        "plantName": "Name of the plant species",
-        "severity": "healthy" | "low" | "medium" | "high",
-        "diagnosis": "Detailed explanation of diseases, pests, or deficiencies found.",
-        "treatment": ["Step 1 treatment action", "Step 2 treatment action", "Step 3 treatment action"]
-      }
-    `;
-
-    const response = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType || 'image/jpeg',
+    // Define a rigid schema to enforce proper JSON parsing on the model output
+    const plantDiagnosisSchema = {
+      type: Type.OBJECT,
+      properties: {
+        plantName: { type: Type.STRING, description: "Name of the plant species" },
+        severity: { 
+          type: Type.STRING, 
+          enum: ["healthy", "low", "medium", "high"],
+          description: "The severity level of the issue found" 
         },
+        diagnosis: { type: Type.STRING, description: "Detailed explanation of diseases, pests, or deficiencies found." },
+        treatment: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "Step-by-step treatment actions"
+        }
       },
-      prompt,
-    ]);
+      required: ["plantName", "severity", "diagnosis", "treatment"]
+    };
 
-    return res.status(200).send(response.response.text());
+    const prompt = `Analyze this plant image and provide the diagnosis data matching the required schema structure.`;
+
+    // Using the interactions endpoint on the stable gemini-3.8-flash model
+    const interaction = await ai.interactions.create({
+      model: "gemini-3.8-flash",
+      input: [
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType || 'image/jpeg',
+          },
+        },
+        prompt,
+      ],
+      // Enforce zero markdown wrapper clutter via strict API configuration
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: plantDiagnosisSchema
+      }
+    });
+
+    // interaction.output_text is now guaranteed to be pure, valid JSON string
+    return res.status(200).send(interaction.output_text);
   } catch (error) {
     console.error("GEMINI FUNCTION ERROR:", error);
     return res.status(500).json({ error: error.message });
